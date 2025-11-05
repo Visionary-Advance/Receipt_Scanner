@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
-import vision from '@google-cloud/vision';
 
 export async function POST(request) {
   try {
@@ -29,16 +28,41 @@ export async function POST(request) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Create Vision API client with OAuth token
-    const client = new vision.ImageAnnotatorClient({
-      credentials: {
-        access_token: session.accessToken,
+    // Use fetch to call Vision API directly with OAuth token
+    const visionApiUrl = 'https://vision.googleapis.com/v1/images:annotate';
+
+    // Convert buffer to base64
+    const base64Image = buffer.toString('base64');
+
+    const visionResponse = await fetch(visionApiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
       },
+      body: JSON.stringify({
+        requests: [
+          {
+            image: {
+              content: base64Image,
+            },
+            features: [
+              {
+                type: 'TEXT_DETECTION',
+              },
+            ],
+          },
+        ],
+      }),
     });
 
-    // Perform text detection
-    const [result] = await client.textDetection(buffer);
-    const detections = result.textAnnotations;
+    if (!visionResponse.ok) {
+      const errorData = await visionResponse.json();
+      throw new Error(`Vision API error: ${JSON.stringify(errorData)}`);
+    }
+
+    const visionData = await visionResponse.json();
+    const detections = visionData.responses[0]?.textAnnotations;
 
     if (!detections || detections.length === 0) {
       return NextResponse.json(

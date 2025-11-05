@@ -344,3 +344,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 If you encounter any issues or have questions, please open an issue on GitHub.
 # Receipt_Scanner
+# Receipt_Scanner
